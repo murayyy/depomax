@@ -418,6 +418,7 @@
     let currentDetailOrderId = null;
     let currentDetailItems = [];
 
+    // ---------- Yardımcı Mesaj / Tablo ----------
     function showMessage(text, type = "info") {
       if (!messageBox) return;
       messageBox.classList.remove("hidden");
@@ -510,6 +511,7 @@
       updateRowCount(jsonData.length);
     }
 
+    // ---------- Excel Okuma ----------
     function parseExcelFile(file) {
       if (!file) {
         showMessage("Lütfen önce bir Excel dosyası seç.", "error");
@@ -547,6 +549,9 @@
             return;
           }
 
+          // debug: kolonları console'a yaz
+          console.log("Excel kolonları:", Object.keys(jsonData[0]));
+
           parsedExcelData = jsonData;
           renderTableFromJson(jsonData);
           showMessage(
@@ -557,7 +562,8 @@
         } catch (err) {
           console.error("Excel parse hatası:", err);
           showMessage(
-            "Excel dosyası okunurken hata oluştu. Başlıkların doğru olduğundan emin ol.",
+            "Excel dosyası okunurken hata oluştu: " +
+              (err && err.message ? err.message : err),
             "error"
           );
           renderTableFromJson([]);
@@ -568,7 +574,11 @@
 
       reader.onerror = (e) => {
         console.error("FileReader hatası:", e);
-        showMessage("Dosya okunurken hata oluştu.", "error");
+        showMessage(
+          "Dosya okunurken hata oluştu: " +
+            (e && e.message ? e.message : "bilinmeyen hata"),
+          "error"
+        );
       };
 
       reader.readAsArrayBuffer(file);
@@ -598,6 +608,35 @@
       });
     }
 
+    // ---------- Kolon isimlerini normalize eden yardımcılar ----------
+    function normalizeKey(key) {
+      return key
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/ç/g, "c")
+        .replace(/ğ/g, "g")
+        .replace(/ı/g, "i")
+        .replace(/ö/g, "o")
+        .replace(/ş/g, "s")
+        .replace(/ü/g, "u")
+        .replace(/\s+/g, " ");
+    }
+
+    function getCol(row, wantedNames) {
+      const keys = Object.keys(row);
+      for (const key of keys) {
+        const nk = normalizeKey(key);
+        for (const w of wantedNames) {
+          if (nk === w) {
+            return row[key];
+          }
+        }
+      }
+      return "";
+    }
+
+    // ---------- Excel → Firestore Kaydet ----------
     async function saveExcelToFirestore() {
       if (!db) {
         showMessage("Firestore bağlı değil. Firebase config'i kontrol et.", "error");
@@ -634,18 +673,14 @@
         const promises = [];
 
         parsedExcelData.forEach((r, idx) => {
-          const productCode =
-            r["Ürün Kodu"] || r["Urun Kodu"] || r["URUN KODU"] || r["URUN KODU"] || "";
-          const productName =
-            r["Ürün Adı"] || r["Urun Adı"] || r["Ürün Adi"] || r["URUN ADI"] || "";
-          const qty =
-            Number(r["Miktar"] || r["MIKTAR"] || r["miktar"] || 0);
-          const description =
-            r["Açıklama"] || r["Aciklama"] || r["AÇIKLAMA"] || "";
-          const aisle =
-            r["Reyon"] || r["REYON"] || "";
-          const barcode =
-            r["Barkod"] || r["BARKOD"] || "";
+          const productCode = getCol(r, ["urun kodu", "urunkodu"]);
+          const productName = getCol(r, ["urun adi", "urun adı", "urunadi", "urunadı"]);
+          const qtyRaw = getCol(r, ["miktar"]);
+          const description = getCol(r, ["aciklama", "açıklama"]);
+          const aisle = getCol(r, ["reyon"]);
+          const barcode = getCol(r, ["barkod"]);
+
+          const qty = Number(qtyRaw || 0);
 
           const itemDocRef = doc(itemsColRef);
           promises.push(
@@ -655,7 +690,7 @@
               productName,
               barcode,
               description,
-              quantityRequested: qty,
+              quantityRequested: isNaN(qty) ? 0 : qty,
               quantityPicked: 0,
               quantityChecked: 0,
               aisleCode: aisle,
@@ -673,10 +708,13 @@
         parsedExcelData = [];
         saveBtn.disabled = true;
         renderTableFromJson([]);
-
       } catch (err) {
         console.error("Firestore kayıt hatası:", err);
-        showMessage("Firestore'a kaydederken hata oluştu.", "error");
+        showMessage(
+          "Firestore'a kaydederken hata oluştu: " +
+            (err && err.message ? err.message : err),
+          "error"
+        );
         saveBtn.disabled = false;
       }
     }
@@ -687,6 +725,7 @@
       });
     }
 
+    // ---------- Siparişleri Çek & Render ----------
     async function fetchOrdersOnce() {
       if (!db) return;
       const qRef = query(collection(db, "orders"), orderBy("createdAt", "desc"));
@@ -894,6 +933,7 @@
       }
     }
 
+    // ---------- Sipariş Detay Modal ----------
     async function openOrderDetail(orderId) {
       if (!db) return;
       currentDetailOrderId = orderId;
@@ -1103,6 +1143,7 @@
       });
     }
 
+    // ---------- Realtime dinleme ----------
     if (db) {
       const qRef = query(collection(db, "orders"), orderBy("createdAt", "desc"));
       onSnapshot(
@@ -1127,7 +1168,7 @@
       });
     }
 
-    // TAB navigation
+    // ---------- TAB navigation ----------
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabSections = document.querySelectorAll(".tab-section");
 
