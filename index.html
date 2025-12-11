@@ -515,137 +515,88 @@
     }
 
     // ---------- Excel Okuma ----------
-    function parseExcelFile(file) {
-      if (!file) {
-        showMessage("Lütfen önce bir Excel dosyası seç.", "error");
+function parseExcelFile(file) {
+  if (!file) {
+    showMessage("Lütfen önce bir Excel dosyası seç.", "error");
+    return;
+  }
+
+  const maxSizeMB = 10;
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    showMessage(
+      `Dosya çok büyük (${maxSizeMB}MB üzeri). Daha küçük bir dosya deneyin.`,
+      "error"
+    );
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try {
+      // XLSX'i globalden çek
+      const XLSXLib = window.XLSX || XLSX;
+      if (!XLSXLib) {
+        showMessage(
+          "Excel kütüphanesi (XLSX) yüklenemedi. Lütfen sayfayı yenileyin veya internet bağlantısını kontrol edin.",
+          "error"
+        );
+        console.log("window.XLSX nedir:", window.XLSX);
         return;
       }
 
-      const maxSizeMB = 10;
-      if (file.size > maxSizeMB * 1024 * 1024) {
-        showMessage(
-          `Dosya çok büyük (${maxSizeMB}MB üzeri). Daha küçük bir dosya deneyin.`,
-          "error"
-        );
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSXLib.read(data, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+
+      const jsonData = XLSXLib.utils.sheet_to_json(worksheet, {
+        defval: "",
+        raw: false
+      });
+
+      if (!jsonData || jsonData.length === 0) {
+        showMessage("Excel dosyasında veri bulunamadı.", "error");
+        renderTableFromJson([]);
+        parsedExcelData = [];
+        saveBtn.disabled = true;
         return;
       }
 
-      const reader = new FileReader();
+      console.log("Excel kolonları:", Object.keys(jsonData[0]));
 
-      reader.onload = (e) => {
-        try {
-          const XLSXLib = window.XLSX;
-          if (!XLSXLib) {
-            showMessage(
-              "Excel kütüphanesi (XLSX) yüklenemedi. Sayfayı yenileyip tekrar deneyin.",
-              "error"
-            );
-            return;
-          }
-
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSXLib.read(data, { type: "array" });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-
-          const jsonData = XLSXLib.utils.sheet_to_json(worksheet, {
-            defval: "",
-            raw: false
-          });
-
-          if (!jsonData || jsonData.length === 0) {
-            showMessage("Excel dosyasında veri bulunamadı.", "error");
-            renderTableFromJson([]);
-            parsedExcelData = [];
-            saveBtn.disabled = true;
-            return;
-          }
-
-          console.log("Excel kolonları:", Object.keys(jsonData[0]));
-
-          parsedExcelData = jsonData;
-          renderTableFromJson(jsonData);
-          showMessage(
-            `Excel okundu. Toplam ${jsonData.length} satır yüklendi. Sipariş No ve Şube'yi doldurup Firestore'a kaydedebilirsin.`,
-            "success"
-          );
-          saveBtn.disabled = false;
-        } catch (err) {
-          console.error("Excel parse hatası:", err);
-          showMessage(
-            "Excel dosyası okunurken hata oluştu: " +
-              (err && err.message ? err.message : err),
-            "error"
-          );
-          renderTableFromJson([]);
-          parsedExcelData = [];
-          saveBtn.disabled = true;
-        }
-      };
-
-      reader.onerror = (e) => {
-        console.error("FileReader hatası:", e);
-        showMessage(
-          "Dosya okunurken hata oluştu: " +
-            (e && e.message ? e.message : "bilinmeyen hata"),
-          "error"
-        );
-      };
-
-      reader.readAsArrayBuffer(file);
+      parsedExcelData = jsonData;
+      renderTableFromJson(jsonData);
+      showMessage(
+        `Excel okundu. Toplam ${jsonData.length} satır yüklendi. Sipariş No ve Şube'yi doldurup Firestore'a kaydedebilirsin.`,
+        "success"
+      );
+      saveBtn.disabled = false;
+    } catch (err) {
+      console.error("Excel parse hatası:", err);
+      showMessage(
+        "Excel dosyası okunurken hata oluştu: " +
+          (err && err.message ? err.message : err),
+        "error"
+      );
+      renderTableFromJson([]);
+      parsedExcelData = [];
+      saveBtn.disabled = true;
     }
+  };
 
-    if (fileInput) {
-      fileInput.addEventListener("change", (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-          selectedFile = null;
-          parsedExcelData = [];
-          fileNameInfo.textContent = "Henüz dosya seçilmedi.";
-          saveBtn.disabled = true;
-          renderTableFromJson([]);
-          showMessage("Herhangi bir dosya seçilmedi.", "info");
-          return;
-        }
-        selectedFile = file;
-        fileNameInfo.textContent = `Seçilen dosya: ${file.name}`;
-        showMessage("Dosya seçildi. Şimdi 'Excel’i Oku' butonuna bas.", "info");
-      });
-    }
+  reader.onerror = (e) => {
+    console.error("FileReader hatası:", e);
+    showMessage(
+      "Dosya okunurken hata oluştu: " +
+        (e && e.message ? e.message : "bilinmeyen hata"),
+      "error"
+    );
+  };
 
-    if (parseBtn) {
-      parseBtn.addEventListener("click", () => {
-        parseExcelFile(selectedFile);
-      });
-    }
+  reader.readAsArrayBuffer(file);
+}
 
-    // ---------- Kolon isimleri normalize ----------
-    function normalizeKey(key) {
-      return key
-        .toString()
-        .trim()
-        .toLowerCase()
-        .replace(/ç/g, "c")
-        .replace(/ğ/g, "g")
-        .replace(/ı/g, "i")
-        .replace(/ö/g, "o")
-        .replace(/ş/g, "s")
-        .replace(/ü/g, "u")
-        .replace(/\s+/g, " ");
-    }
-
-    function getCol(row, wantedNames) {
-      const keys = Object.keys(row);
-      for (const key of keys) {
-        const nk = normalizeKey(key);
-        for (const w of wantedNames) {
-          if (nk === w) {
-            return row[key];
-          }
-        }
-      }
-      return "";
-    }
 
     // ---------- Excel → Firestore Kaydet ----------
     async function saveExcelToFirestore() {
