@@ -3,160 +3,1181 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sipariş Toplama Paneli - Excel Yükleme</title>
+  <title>Depo Sipariş Toplama & Kontrol & Sevk Sistemi</title>
 
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         sans-serif;
-      background: #0f172a; /* slate-900 */
+      background: #020617; /* slate-950 */
+    }
+
+    /* Basit modal stil */
+    .modal-backdrop {
+      background: rgba(15, 23, 42, 0.9);
     }
   </style>
 </head>
 <body class="min-h-screen text-slate-100">
-  <!-- Ana Container -->
-  <div class="max-w-6xl mx-auto px-4 py-8">
-    <!-- Üst Başlık -->
-    <header class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div class="max-w-6xl mx-auto px-4 py-6">
+    <!-- HEADER -->
+    <header class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
         <h1 class="text-2xl md:text-3xl font-bold tracking-tight">
-          Sipariş Toplama &amp; Kontrol Paneli
+          Depo Sipariş Sistemi
         </h1>
-        <p class="text-sm md:text-base text-slate-300 mt-2">
-          Excel dosyasını yükle, sipariş satırlarını sistemde gör. 
-          Sonraki adımda toplama ve kontrol ekranlarını ekleyeceğiz.
+        <p class="text-sm md:text-base text-slate-300 mt-1">
+          Excel'den sipariş al · Firestore'a kaydet · Toplama · Kontrol · Sevk yönet.
         </p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-col items-start md:items-end gap-2">
         <span class="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/40">
-          v0.1 Prototip
+          v1.0 – Netlify Tek Dosya
         </span>
-        <span class="text-xs text-slate-400 hidden md:inline">
-          Netlify yayınına hazır basit frontend
+        <span id="connectionStatus" class="text-xs text-yellow-300">
+          Firebase bağlanıyor...
         </span>
       </div>
     </header>
 
-    <!-- Kart: Excel Yükleme -->
-    <main class="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
-      <!-- Sol: Yükleme Alanı -->
-      <section class="bg-slate-800/60 border border-slate-700/70 rounded-2xl p-5 shadow-lg shadow-black/40">
-        <h2 class="text-lg font-semibold mb-4">
-          1. Adım: Excel Sipariş Dosyasını Yükle
-        </h2>
-
-        <p class="text-sm text-slate-300 mb-4">
-          Desteklenen formatlar: 
-          <span class="font-semibold text-sky-300">.xlsx, .xls, .csv</span><br />
-          Örnek sütunlar: 
-          <span class="text-slate-200">SiparişNo, Şube, ÜrünKodu, ÜrünAdı, Barkod, Miktar, ReyonKodu</span>
-        </p>
-
-        <label
-          for="excelFileInput"
-          class="block w-full cursor-pointer rounded-xl border border-dashed border-slate-600 bg-slate-900/50 p-4 text-center hover:border-sky-500 hover:bg-slate-900/80 transition"
-        >
-          <div class="flex flex-col items-center gap-2">
-            <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-800"
-            >
-              📁
-            </div>
-            <div>
-              <p class="text-sm font-medium">
-                Excel dosyasını seçmek için tıkla
-              </p>
-              <p class="text-xs text-slate-400 mt-1">
-                veya dosyayı buraya sürükle bırak (tarayıcı destekliyorsa)
-              </p>
-            </div>
-          </div>
-          <input
-            id="excelFileInput"
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            class="hidden"
-          />
-        </label>
-
-        <div class="mt-4 flex items-center gap-3">
-          <button
-            id="parseExcelBtn"
-            class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            📊 Excel’i Oku ve Listele
+    <!-- TABLAR (Admin / Toplayıcı / Kontrol / Sevk / Tamamlanan) -->
+    <nav class="mb-4 border-b border-slate-800">
+      <ul class="flex flex-wrap gap-2 text-sm">
+        <li>
+          <button data-tab="admin" class="tab-btn px-3 py-2 rounded-t-lg bg-slate-800 text-slate-100 border border-slate-700 border-b-0">
+            Yönetim & Excel
           </button>
-          <span id="fileNameInfo" class="text-xs text-slate-400">
-            Henüz dosya seçilmedi.
-          </span>
-        </div>
+        </li>
+        <li>
+          <button data-tab="picking" class="tab-btn px-3 py-2 rounded-t-lg text-slate-300 hover:bg-slate-800/60">
+            Toplayıcı
+          </button>
+        </li>
+        <li>
+          <button data-tab="checking" class="tab-btn px-3 py-2 rounded-t-lg text-slate-300 hover:bg-slate-800/60">
+            Kontrol
+          </button>
+        </li>
+        <li>
+          <button data-tab="shipping" class="tab-btn px-3 py-2 rounded-t-lg text-slate-300 hover:bg-slate-800/60">
+            Sevk
+          </button>
+        </li>
+        <li>
+          <button data-tab="completed" class="tab-btn px-3 py-2 rounded-t-lg text-slate-300 hover:bg-slate-800/60">
+            Tamamlananlar
+          </button>
+        </li>
+      </ul>
+    </nav>
 
-        <!-- Bilgi / Hata Alanı -->
-        <div id="messageBox" class="mt-4 text-xs text-slate-300 hidden"></div>
-      </section>
+    <!-- ANA İÇERİK ALANI -->
+    <main class="space-y-6">
 
-      <!-- Sağ: Önizleme Tablosu -->
-      <section class="bg-slate-800/60 border border-slate-700/70 rounded-2xl p-5 shadow-lg shadow-black/40">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold">
-            2. Adım: Excel Önizleme (Sipariş Satırları)
-          </h2>
-          <span
-            id="rowCountBadge"
-            class="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-xs text-slate-300 border border-slate-600"
-          >
-            Toplam Satır: 0
-          </span>
-        </div>
+      <!-- TAB: YÖNETİM & EXCEL -->
+      <section id="tab-admin" class="tab-section">
+        <div class="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
+          <!-- Excel Yükleme -->
+          <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+            <h2 class="text-lg font-semibold mb-2">
+              1) Excel Sipariş Yükleme
+            </h2>
+            <p class="text-xs text-slate-300 mb-3">
+              Excel formatı örneği:
+              <span class="text-slate-100 font-semibold">
+                SiparişNo, Şube, ÜrünKodu, ÜrünAdı, Barkod, Miktar, ReyonKodu
+              </span>
+            </p>
 
-        <div
-          id="tableContainer"
-          class="relative max-h-[480px] overflow-auto rounded-xl border border-slate-700/70 bg-slate-900/60"
-        >
-          <!-- Boş durumda gösterilecek mesaj -->
-          <div
-            id="emptyState"
-            class="flex flex-col items-center justify-center py-16 text-center text-slate-400 text-sm"
-          >
-            <div
-              class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-800"
+            <label
+              for="excelFileInput"
+              class="block w-full cursor-pointer rounded-xl border border-dashed border-slate-600 bg-slate-950/70 p-4 text-center hover:border-sky-500 hover:bg-slate-900 transition"
             >
-              📄
-            </div>
-            <p class="font-medium mb-1">
-              Henüz bir Excel dosyası işlenmedi.
-            </p>
-            <p class="max-w-xs text-xs text-slate-500">
-              Soldan bir dosya seçip “Excel’i Oku ve Listele” butonuna
-              bastıktan sonra, satırları burada tablo halinde göreceksin.
-            </p>
-          </div>
+              <div class="flex flex-col items-center gap-2">
+                <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-800">
+                  📁
+                </div>
+                <div>
+                  <p class="text-sm font-medium">
+                    Excel dosyasını seçmek için tıkla
+                  </p>
+                  <p class="text-xs text-slate-400 mt-1">
+                    .xlsx, .xls, .csv dosyaları desteklenir.
+                  </p>
+                </div>
+              </div>
+              <input
+                id="excelFileInput"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                class="hidden"
+              />
+            </label>
 
-          <!-- Excel'den gelen tablo buraya eklenecek -->
-          <div id="excelTableWrapper" class="hidden"></div>
+            <div class="mt-4 flex flex-col gap-2">
+              <div class="flex items-center gap-3">
+                <button
+                  id="parseExcelBtn"
+                  class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  📊 Excel’i Oku
+                </button>
+                <button
+                  id="saveToFirestoreBtn"
+                  class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled
+                >
+                  💾 Firestore’a Kaydet
+                </button>
+              </div>
+              <span id="fileNameInfo" class="text-xs text-slate-400">
+                Henüz dosya seçilmedi.
+              </span>
+            </div>
+
+            <div id="messageBox" class="mt-3 text-xs hidden"></div>
+          </section>
+
+          <!-- Excel Önizleme -->
+          <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-semibold">
+                2) Excel Önizleme
+              </h2>
+              <span
+                id="rowCountBadge"
+                class="inline-flex items-center rounded-full bg-slate-950 px-3 py-1 text-xs text-slate-300 border border-slate-600"
+              >
+                Toplam Satır: 0
+              </span>
+            </div>
+            <div
+              id="tableContainer"
+              class="relative max-h-[420px] overflow-auto rounded-xl border border-slate-700 bg-slate-950/80"
+            >
+              <div
+                id="emptyState"
+                class="flex flex-col items-center justify-center py-16 text-center text-slate-400 text-sm"
+              >
+                <div class="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-800">
+                  📄
+                </div>
+                <p class="font-medium mb-1">
+                  Henüz bir Excel dosyası işlenmedi.
+                </p>
+                <p class="max-w-xs text-xs text-slate-500">
+                  Soldan bir dosya seçip “Excel’i Oku” butonuna bastıktan sonra, satırları burada tablo halinde göreceksin.
+                </p>
+              </div>
+              <div id="excelTableWrapper" class="hidden"></div>
+            </div>
+          </section>
         </div>
+
+        <!-- Sipariş Panosu (Yönetim bakışı) -->
+        <section class="mt-6 bg-slate-900/70 border border-slate-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">
+              3) Sipariş Panosu (Tüm Durumlar)
+            </h2>
+            <button
+              id="refreshOrdersBtn"
+              class="text-xs inline-flex items-center gap-1 rounded-lg border border-slate-600 px-3 py-1 hover:bg-slate-800"
+            >
+              🔄 Yenile
+            </button>
+          </div>
+          <div id="ordersAdminList" class="space-y-2 text-xs">
+            <!-- JS ile doldurulacak -->
+          </div>
+        </section>
       </section>
+
+      <!-- TAB: TOPLAYICI -->
+      <section id="tab-picking" class="tab-section hidden">
+        <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">
+              Toplayıcı Ekranı
+            </h2>
+            <span class="text-xs text-slate-400">
+              Durum: <span class="text-emerald-300">new / picking</span> siparişler
+            </span>
+          </div>
+          <div id="ordersPickingList" class="space-y-2 text-xs">
+            <!-- JS -->
+          </div>
+        </section>
+      </section>
+
+      <!-- TAB: KONTROL -->
+      <section id="tab-checking" class="tab-section hidden">
+        <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">
+              Kontrol Ekranı
+            </h2>
+            <span class="text-xs text-slate-400">
+              Durum: <span class="text-yellow-300">checking</span> siparişler
+            </span>
+          </div>
+          <div id="ordersCheckingList" class="space-y-2 text-xs">
+            <!-- JS -->
+          </div>
+        </section>
+      </section>
+
+      <!-- TAB: SEVK -->
+      <section id="tab-shipping" class="tab-section hidden">
+        <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">
+              Sevk Ekranı
+            </h2>
+            <span class="text-xs text-slate-400">
+              Durum: <span class="text-sky-300">ready_to_ship</span> siparişler
+            </span>
+          </div>
+          <div id="ordersShippingList" class="space-y-2 text-xs">
+            <!-- JS -->
+          </div>
+        </section>
+      </section>
+
+      <!-- TAB: TAMAMLANANLAR -->
+      <section id="tab-completed" class="tab-section hidden">
+        <section class="bg-slate-900/70 border border-slate-700 rounded-2xl p-5 shadow-lg shadow-black/40">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">
+              Tamamlanan Siparişler
+            </h2>
+            <span class="text-xs text-slate-400">
+              Durum: <span class="text-emerald-300">completed</span>
+            </span>
+          </div>
+          <div id="ordersCompletedList" class="space-y-2 text-xs">
+            <!-- JS -->
+          </div>
+        </section>
+      </section>
+
     </main>
 
-    <!-- Alt bilgi -->
-    <footer class="mt-8 border-t border-slate-800 pt-4 text-xs text-slate-500 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+    <!-- FOOTER -->
+    <footer class="mt-6 border-t border-slate-800 pt-3 text-xs text-slate-500 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
       <span>
-        Depo sipariş toplama &amp; kontrol sistemi – 
-        <span class="text-slate-300">Prototip Aşama 1: Excel Okuma</span>
+        Depo Sipariş – <span class="text-slate-300">Excel → Firestore → Toplama → Kontrol → Sevk</span>
       </span>
-      <span>
-        Sonraki adım: <span class="text-sky-300">Firestore’a kaydetme ve toplayıcı ekranı</span>
+      <span class="text-slate-400">
+        Roller yok, şimdilik tek panelden yönetim için tasarlandı.
       </span>
     </footer>
   </div>
 
-  <!-- SheetJS - Excel Okuma Kütüphanesi -->
+  <!-- MODAL: Sipariş Detay -->
+  <div id="orderDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+    <div class="absolute inset-0 modal-backdrop flex items-center justify-center">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden shadow-xl shadow-black/60">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div>
+            <h3 id="detailModalTitle" class="text-sm font-semibold">
+              Sipariş Detayı
+            </h3>
+            <p id="detailModalSubtitle" class="text-xs text-slate-400"></p>
+          </div>
+          <button
+            id="closeDetailModalBtn"
+            class="text-slate-400 hover:text-slate-100 text-lg"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-2 text-xs">
+            <span class="text-slate-400">
+              Ürünler reyon sırasına göre listelenir.
+            </span>
+            <button
+              id="markAllPickedBtn"
+              class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-[0.7rem] font-semibold text-white hover:bg-emerald-500"
+            >
+              ✅ Tümünü Toplandı Say
+            </button>
+          </div>
+          <div id="orderItemsContainer" class="border border-slate-800 rounded-xl max-h-[56vh] overflow-auto text-xs">
+            <!-- JS -->
+          </div>
+        </div>
+        <div class="px-4 py-3 border-t border-slate-800 flex items-center justify-end gap-2 text-xs">
+          <button
+            id="detailModalSaveBtn"
+            class="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1 text-[0.75rem] font-semibold text-white hover:bg-sky-500"
+          >
+            💾 Değişiklikleri Kaydet
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SheetJS - Excel Kütüphanesi -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-6RN6QZgOIfJA1s8iP6h5ecZFXJANIlZLzLfcWI51FQHQ7wxOXVLFBYpDLCgQdQ15XibcnCy8i7Mwkkp98dPzew==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-  <!-- Uygulama JS Dosyası (Bir Sonraki Adımda Yazacağız) -->
-  <script src="app.js"></script>
+  <!-- Firebase (Modüler v10) -->
+  <script type="module">
+    // --------- FIREBASE SETUP ---------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc,
+      getDocs,
+      query,
+      orderBy,
+      serverTimestamp,
+      onSnapshot,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // 🔴 BURAYI KENDİ PROJENLE DOLDUR
+    const firebaseConfig = {
+      apiKey: "API_KEYIN",
+      authDomain: "PROJEN.firebaseapp.com",
+      projectId: "PROJE_ID",
+      storageBucket: "PROJE_ID.appspot.com",
+      messagingSenderId: "XXX",
+      appId: "1:XXX:web:YYY"
+    };
+
+    let app, db;
+    const connectionStatus = document.getElementById("connectionStatus");
+
+    try {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      if (connectionStatus) {
+        connectionStatus.textContent = "Firebase bağlı ✅";
+        connectionStatus.classList.remove("text-yellow-300");
+        connectionStatus.classList.add("text-emerald-300");
+      }
+    } catch (err) {
+      console.error("Firebase hata:", err);
+      if (connectionStatus) {
+        connectionStatus.textContent = "Firebase bağlanamadı ❌ – Config kontrol et.";
+        connectionStatus.classList.remove("text-yellow-300");
+        connectionStatus.classList.add("text-red-300");
+      }
+    }
+
+    // --------- GENEL DOM ELEMANLARI ---------
+    const fileInput = document.getElementById("excelFileInput");
+    const parseBtn = document.getElementById("parseExcelBtn");
+    const saveBtn = document.getElementById("saveToFirestoreBtn");
+    const fileNameInfo = document.getElementById("fileNameInfo");
+    const messageBox = document.getElementById("messageBox");
+    const rowCountBadge = document.getElementById("rowCountBadge");
+    const emptyState = document.getElementById("emptyState");
+    const excelTableWrapper = document.getElementById("excelTableWrapper");
+
+    const ordersAdminList = document.getElementById("ordersAdminList");
+    const ordersPickingList = document.getElementById("ordersPickingList");
+    const ordersCheckingList = document.getElementById("ordersCheckingList");
+    const ordersShippingList = document.getElementById("ordersShippingList");
+    const ordersCompletedList = document.getElementById("ordersCompletedList");
+    const refreshOrdersBtn = document.getElementById("refreshOrdersBtn");
+
+    // Modal elemanları
+    const orderDetailModal = document.getElementById("orderDetailModal");
+    const closeDetailModalBtn = document.getElementById("closeDetailModalBtn");
+    const detailModalTitle = document.getElementById("detailModalTitle");
+    const detailModalSubtitle = document.getElementById("detailModalSubtitle");
+    const orderItemsContainer = document.getElementById("orderItemsContainer");
+    const markAllPickedBtn = document.getElementById("markAllPickedBtn");
+    const detailModalSaveBtn = document.getElementById("detailModalSaveBtn");
+
+    let selectedFile = null;
+    let parsedExcelData = []; // excelden gelen JSON satırları
+    let cachedOrders = []; // Firestore'dan gelen siparişler
+    let currentDetailOrderId = null;
+    let currentDetailItems = [];
+
+    // --------- YARDIMCI FONKSİYONLAR ---------
+    function showMessage(text, type = "info") {
+      if (!messageBox) return;
+      messageBox.classList.remove("hidden");
+
+      let baseClasses = "rounded-lg px-3 py-2 text-xs border ";
+      let typeClasses = "";
+
+      switch (type) {
+        case "error":
+          typeClasses = "bg-red-900/40 border-red-500/60 text-red-200";
+          break;
+        case "success":
+          typeClasses = "bg-emerald-900/40 border-emerald-500/60 text-emerald-200";
+          break;
+        default:
+          typeClasses = "bg-slate-800/70 border-slate-500/60 text-slate-200";
+      }
+
+      messageBox.className = baseClasses + typeClasses;
+      messageBox.textContent = text;
+    }
+
+    function updateRowCount(count) {
+      if (!rowCountBadge) return;
+      rowCountBadge.textContent = `Toplam Satır: ${count}`;
+    }
+
+    function renderTableFromJson(jsonData) {
+      if (!excelTableWrapper) return;
+
+      if (!jsonData || jsonData.length === 0) {
+        excelTableWrapper.innerHTML = "";
+        excelTableWrapper.classList.add("hidden");
+        emptyState.classList.remove("hidden");
+        updateRowCount(0);
+        return;
+      }
+
+      const headers = Object.keys(jsonData[0]);
+      const table = document.createElement("table");
+      table.className = "min-w-full text-xs text-left text-slate-200 border-collapse";
+
+      const thead = document.createElement("thead");
+      thead.className = "bg-slate-800 sticky top-0 z-10";
+      const headerRow = document.createElement("tr");
+      headerRow.className = "border-b border-slate-700";
+
+      headers.forEach((header) => {
+        const th = document.createElement("th");
+        th.className = "px-3 py-2 font-semibold uppercase tracking-wide text-[0.7rem] text-slate-300 border-r border-slate-700 last:border-r-0";
+        th.textContent = header;
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      tbody.className = "divide-y divide-slate-800";
+
+      jsonData.forEach((row, rowIndex) => {
+        const tr = document.createElement("tr");
+        tr.className =
+          rowIndex % 2 === 0
+            ? "bg-slate-900/40 hover:bg-slate-800/70"
+            : "bg-slate-900/20 hover:bg-slate-800/70";
+
+        headers.forEach((header) => {
+          const td = document.createElement("td");
+          td.className = "px-3 py-1.5 align-middle border-r border-slate-800 last:border-r-0";
+          let cellValue = row[header];
+          if (cellValue === undefined || cellValue === null) {
+            cellValue = "";
+          }
+          td.textContent = cellValue;
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      excelTableWrapper.innerHTML = "";
+      excelTableWrapper.appendChild(table);
+
+      emptyState.classList.add("hidden");
+      excelTableWrapper.classList.remove("hidden");
+      updateRowCount(jsonData.length);
+    }
+
+    // --------- EXCEL OKUMA ---------
+    function parseExcelFile(file) {
+      if (!file) {
+        showMessage("Lütfen önce bir Excel dosyası seç.", "error");
+        return;
+      }
+
+      const maxSizeMB = 10;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        showMessage(
+          `Dosya çok büyük (${maxSizeMB}MB üzeri). Daha küçük bir dosya deneyin.`,
+          "error"
+        );
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            defval: "",
+            raw: false
+          });
+
+          if (!jsonData || jsonData.length === 0) {
+            showMessage("Excel dosyasında veri bulunamadı.", "error");
+            renderTableFromJson([]);
+            parsedExcelData = [];
+            saveBtn.disabled = true;
+            return;
+          }
+
+          parsedExcelData = jsonData;
+          renderTableFromJson(jsonData);
+          showMessage(
+            `Excel okundu. Toplam ${jsonData.length} satır yüklendi. Firestore'a kaydetmek için alttaki butona bas.`,
+            "success"
+          );
+          saveBtn.disabled = false;
+        } catch (err) {
+          console.error("Excel parse hatası:", err);
+          showMessage(
+            "Excel dosyası okunurken hata oluştu. Formatı kontrol edin.",
+            "error"
+          );
+          renderTableFromJson([]);
+          parsedExcelData = [];
+          saveBtn.disabled = true;
+        }
+      };
+
+      reader.onerror = (e) => {
+        console.error("FileReader hatası:", e);
+        showMessage("Dosya okunurken hata oluştu.", "error");
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          selectedFile = null;
+          parsedExcelData = [];
+          fileNameInfo.textContent = "Henüz dosya seçilmedi.";
+          saveBtn.disabled = true;
+          renderTableFromJson([]);
+          showMessage("Herhangi bir dosya seçilmedi.", "info");
+          return;
+        }
+        selectedFile = file;
+        fileNameInfo.textContent = `Seçilen dosya: ${file.name}`;
+        showMessage("Dosya seçildi. Şimdi 'Excel’i Oku' butonuna bas.", "info");
+      });
+    }
+
+    if (parseBtn) {
+      parseBtn.addEventListener("click", () => {
+        parseExcelFile(selectedFile);
+      });
+    }
+
+    // --------- EXCEL → FIRESTORE KAYDET ---------
+    async function saveExcelToFirestore() {
+      if (!db) {
+        showMessage("Firestore bağlı değil. Firebase config'i kontrol et.", "error");
+        return;
+      }
+      if (!parsedExcelData || parsedExcelData.length === 0) {
+        showMessage("Önce Excel'i okuyun.", "error");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      showMessage("Siparişler Firestore'a kaydediliyor...", "info");
+
+      try {
+        // SiparişNo'ya göre grupla
+        const ordersMap = new Map();
+
+        parsedExcelData.forEach((row) => {
+          const sipNo = row["SiparişNo"] || row["SiparisNo"] || row["SIPARISNO"] || "";
+          if (!sipNo) return;
+
+          if (!ordersMap.has(sipNo)) {
+            ordersMap.set(sipNo, []);
+          }
+          ordersMap.get(sipNo).push(row);
+        });
+
+        let savedOrdersCount = 0;
+
+        for (const [orderNo, rows] of ordersMap.entries()) {
+          const firstRow = rows[0];
+          const branch =
+            firstRow["Şube"] ||
+            firstRow["Sube"] ||
+            firstRow["SUBE"] ||
+            "BILINMIYOR";
+
+          // Yeni sipariş dokümanı
+          const orderRef = doc(collection(db, "orders"));
+          const orderId = orderRef.id;
+
+          await setDoc(orderRef, {
+            orderNo,
+            branch,
+            createdAt: serverTimestamp(),
+            status: "new" // ilk durum
+          });
+
+          // Alt koleksiyon: items
+          const itemsColRef = collection(db, "orders", orderId, "items");
+
+          const promises = rows.map((r, idx) => {
+            const productCode =
+              r["ÜrünKodu"] || r["UrunKodu"] || r["URUNKODU"] || "";
+            const productName =
+              r["ÜrünAdı"] ||
+              r["UrunAdi"] ||
+              r["ÜRÜNADI"] ||
+              r["URUNADI"] ||
+              "";
+            const barcode =
+              r["Barkod"] || r["BARKOD"] || "";
+            const qty =
+              Number(r["Miktar"] || r["MIKTAR"] || r["miktar"] || 0);
+            const aisle =
+              r["ReyonKodu"] ||
+              r["Reyon"] ||
+              r["REYONKODU"] ||
+              r["REYON"] ||
+              "";
+
+            const itemDocRef = doc(itemsColRef);
+            return setDoc(itemDocRef, {
+              lineNo: idx + 1,
+              productCode,
+              productName,
+              barcode,
+              quantityRequested: qty,
+              quantityPicked: 0,
+              quantityChecked: 0,
+              aisleCode: aisle,
+              status: "waiting"
+            });
+          });
+
+          await Promise.all(promises);
+          savedOrdersCount++;
+        }
+
+        showMessage(
+          `Firestore'a kaydedildi. Toplam ${savedOrdersCount} sipariş oluşturuldu.`,
+          "success"
+        );
+        parsedExcelData = [];
+        saveBtn.disabled = true;
+
+      } catch (err) {
+        console.error("Firestore kayıt hatası:", err);
+        showMessage("Firestore'a kaydederken hata oluştu.", "error");
+        saveBtn.disabled = false;
+      }
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        saveExcelToFirestore();
+      });
+    }
+
+    // --------- SİPARİŞLERİ ÇEK & PANOLARI RENDER ET ---------
+    async function fetchOrdersOnce() {
+      if (!db) return;
+      const qRef = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(qRef);
+      const data = [];
+      snap.forEach((docSnap) => {
+        data.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      cachedOrders = data;
+      renderAllOrders();
+    }
+
+    function renderAllOrders() {
+      renderAdminOrders();
+      renderRoleOrders();
+    }
+
+    function renderAdminOrders() {
+      if (!ordersAdminList) return;
+      ordersAdminList.innerHTML = "";
+
+      if (!cachedOrders.length) {
+        ordersAdminList.innerHTML =
+          '<p class="text-slate-400 text-xs">Henüz Firestore’da sipariş yok.</p>';
+        return;
+      }
+
+      cachedOrders.forEach((o) => {
+        const div = document.createElement("div");
+        div.className =
+          "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2";
+
+        const statusColor =
+          o.status === "new"
+            ? "bg-slate-700 text-slate-100"
+            : o.status === "picking"
+            ? "bg-sky-700 text-sky-100"
+            : o.status === "checking"
+            ? "bg-yellow-700 text-yellow-100"
+            : o.status === "ready_to_ship"
+            ? "bg-emerald-700 text-emerald-100"
+            : o.status === "completed"
+            ? "bg-emerald-900 text-emerald-200"
+            : "bg-slate-700 text-slate-100";
+
+        div.innerHTML = `
+          <div class="flex flex-col text-xs">
+            <span class="font-semibold text-slate-100">Sipariş: ${o.orderNo || "-"} • Şube: ${o.branch || "-"}</span>
+            <span class="text-slate-400">ID: ${o.id}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${statusColor}">
+              ${o.status}
+            </span>
+            <button
+              class="detail-btn inline-flex items-center rounded-lg border border-slate-600 px-2 py-1 text-[0.7rem] text-slate-100 hover:bg-slate-800"
+              data-order-id="${o.id}"
+            >
+              🔍 Detay
+            </button>
+          </div>
+        `;
+        ordersAdminList.appendChild(div);
+      });
+
+      // Detay butonlarına event
+      ordersAdminList.querySelectorAll(".detail-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const orderId = btn.getAttribute("data-order-id");
+          openOrderDetail(orderId);
+        });
+      });
+    }
+
+    function renderRoleOrders() {
+      if (!ordersPickingList || !ordersCheckingList || !ordersShippingList || !ordersCompletedList) return;
+
+      ordersPickingList.innerHTML = "";
+      ordersCheckingList.innerHTML = "";
+      ordersShippingList.innerHTML = "";
+      ordersCompletedList.innerHTML = "";
+
+      const pickingOrders = cachedOrders.filter((o) =>
+        ["new", "picking"].includes(o.status)
+      );
+      const checkingOrders = cachedOrders.filter((o) => o.status === "checking");
+      const shippingOrders = cachedOrders.filter((o) => o.status === "ready_to_ship");
+      const completedOrders = cachedOrders.filter((o) => o.status === "completed");
+
+      // yardımcı render
+      function createOrderRow(o, context) {
+        const div = document.createElement("div");
+        div.className =
+          "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2";
+
+        let primaryBtnText = "";
+        let primaryBtnStatus = "";
+        if (context === "picking") {
+          if (o.status === "new") {
+            primaryBtnText = "▶ Toplamaya Başla";
+            primaryBtnStatus = "picking";
+          } else if (o.status === "picking") {
+            primaryBtnText = "✅ Toplamayı Bitir (Kontrole Gönder)";
+            primaryBtnStatus = "checking";
+          }
+        } else if (context === "checking" && o.status === "checking") {
+          primaryBtnText = "✅ Kontrolü Bitir (Sevke Hazır)";
+          primaryBtnStatus = "ready_to_ship";
+        } else if (context === "shipping" && o.status === "ready_to_ship") {
+          primaryBtnText = "🚚 Sevk Ettim (Tamamla)";
+          primaryBtnStatus = "completed";
+        }
+
+        div.innerHTML = `
+          <div class="flex flex-col text-xs">
+            <span class="font-semibold text-slate-100">Sipariş: ${o.orderNo || "-"} • Şube: ${o.branch || "-"}</span>
+            <span class="text-slate-400">Durum: ${o.status}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="detail-btn inline-flex items-center rounded-lg border border-slate-600 px-2 py-1 text-[0.7rem] text-slate-100 hover:bg-slate-800"
+              data-order-id="${o.id}"
+            >
+              🔍 Detay
+            </button>
+            ${
+              primaryBtnText
+                ? `<button
+                    class="status-btn inline-flex items-center rounded-lg bg-emerald-600 px-2 py-1 text-[0.7rem] font-semibold text-white hover:bg-emerald-500"
+                    data-order-id="${o.id}"
+                    data-target-status="${primaryBtnStatus}"
+                  >
+                    ${primaryBtnText}
+                  </button>`
+                : ""
+            }
+          </div>
+        `;
+        return div;
+      }
+
+      if (!pickingOrders.length) {
+        ordersPickingList.innerHTML =
+          '<p class="text-slate-400 text-xs">Toplanacak sipariş yok.</p>';
+      } else {
+        pickingOrders.forEach((o) => {
+          ordersPickingList.appendChild(createOrderRow(o, "picking"));
+        });
+      }
+
+      if (!checkingOrders.length) {
+        ordersCheckingList.innerHTML =
+          '<p class="text-slate-400 text-xs">Kontrole gelen sipariş yok.</p>';
+      } else {
+        checkingOrders.forEach((o) => {
+          ordersCheckingList.appendChild(createOrderRow(o, "checking"));
+        });
+      }
+
+      if (!shippingOrders.length) {
+        ordersShippingList.innerHTML =
+          '<p class="text-slate-400 text-xs">Sevke hazır sipariş yok.</p>';
+      } else {
+        shippingOrders.forEach((o) => {
+          ordersShippingList.appendChild(createOrderRow(o, "shipping"));
+        });
+      }
+
+      if (!completedOrders.length) {
+        ordersCompletedList.innerHTML =
+          '<p class="text-slate-400 text-xs">Tamamlanan sipariş yok.</p>';
+      } else {
+        completedOrders.forEach((o) => {
+          ordersCompletedList.appendChild(createOrderRow(o, "completed"));
+        });
+      }
+
+      // Detay butonları
+      [ordersPickingList, ordersCheckingList, ordersShippingList, ordersCompletedList].forEach(
+        (listEl) => {
+          listEl.querySelectorAll(".detail-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const orderId = btn.getAttribute("data-order-id");
+              openOrderDetail(orderId);
+            });
+          });
+
+          listEl.querySelectorAll(".status-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const orderId = btn.getAttribute("data-order-id");
+              const targetStatus = btn.getAttribute("data-target-status");
+              updateOrderStatus(orderId, targetStatus);
+            });
+          });
+        }
+      );
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      if (!db) return;
+      try {
+        const ref = doc(db, "orders", orderId);
+        await updateDoc(ref, { status: newStatus });
+        showMessage(`Sipariş durumu güncellendi: ${newStatus}`, "success");
+      } catch (err) {
+        console.error("Durum güncelleme hatası:", err);
+        showMessage("Durum güncellenirken hata oluştu.", "error");
+      }
+    }
+
+    // --------- SİPARİŞ DETAY MODAL (ÜRÜN LİSTESİ) ---------
+    async function openOrderDetail(orderId) {
+      if (!db) return;
+      currentDetailOrderId = orderId;
+      orderItemsContainer.innerHTML = "Yükleniyor...";
+
+      // Sipariş bilgisi
+      const order = cachedOrders.find((o) => o.id === orderId);
+      if (order) {
+        detailModalTitle.textContent = `Sipariş: ${order.orderNo || "-"} • Şube: ${
+          order.branch || "-"
+        }`;
+        detailModalSubtitle.textContent = `Durum: ${order.status}`;
+      } else {
+        detailModalTitle.textContent = "Sipariş Detayı";
+        detailModalSubtitle.textContent = "";
+      }
+
+      // Items
+      const itemsColRef = collection(db, "orders", orderId, "items");
+      const snap = await getDocs(itemsColRef);
+      const items = [];
+      snap.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
+      });
+
+      // Reyon koduna göre sırala
+      items.sort((a, b) => {
+        const ax = a.aisleCode || "";
+        const bx = b.aisleCode || "";
+        return ax.localeCompare(bx);
+      });
+
+      currentDetailItems = items;
+
+      if (!items.length) {
+        orderItemsContainer.innerHTML =
+          '<p class="text-slate-400 text-xs p-3">Bu sipariş için ürün satırı bulunamadı.</p>';
+      } else {
+        const table = document.createElement("table");
+        table.className =
+          "min-w-full text-[0.7rem] text-left text-slate-200 border-collapse";
+
+        const thead = document.createElement("thead");
+        thead.className = "bg-slate-800 sticky top-0 z-10";
+        const headerRow = document.createElement("tr");
+        headerRow.className = "border-b border-slate-700";
+
+        const headers = [
+          "Reyon",
+          "Ürün",
+          "İstenen",
+          "Toplanan",
+          "Kontrol",
+          "Durum"
+        ];
+
+        headers.forEach((h) => {
+          const th = document.createElement("th");
+          th.className =
+            "px-2 py-2 font-semibold uppercase tracking-wide text-[0.65rem] text-slate-300 border-r border-slate-700 last:border-r-0";
+          th.textContent = h;
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        tbody.className = "divide-y divide-slate-800";
+
+        items.forEach((it, idx) => {
+          const tr = document.createElement("tr");
+          tr.className =
+            idx % 2 === 0
+              ? "bg-slate-900/40"
+              : "bg-slate-900/10";
+
+          tr.innerHTML = `
+            <td class="px-2 py-1 border-r border-slate-800">${it.aisleCode || ""}</td>
+            <td class="px-2 py-1 border-r border-slate-800">
+              <div class="flex flex-col">
+                <span class="text-slate-100">${it.productName || ""}</span>
+                <span class="text-slate-400">Kod: ${it.productCode || "-"}</span>
+                <span class="text-slate-500">Barkod: ${it.barcode || "-"}</span>
+              </div>
+            </td>
+            <td class="px-2 py-1 border-r border-slate-800 text-center">${it.quantityRequested || 0}</td>
+            <td class="px-2 py-1 border-r border-slate-800 text-center">
+              <input
+                type="number"
+                min="0"
+                class="picked-input w-16 rounded bg-slate-900 border border-slate-700 px-1 py-0.5 text-center"
+                value="${it.quantityPicked || 0}"
+                data-item-id="${it.id}"
+              />
+            </td>
+            <td class="px-2 py-1 border-r border-slate-800 text-center">
+              <input
+                type="number"
+                min="0"
+                class="checked-input w-16 rounded bg-slate-900 border border-slate-700 px-1 py-0.5 text-center"
+                value="${it.quantityChecked || 0}"
+                data-item-id="${it.id}"
+              />
+            </td>
+            <td class="px-2 py-1 text-center">
+              <span class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[0.6rem] text-slate-200">
+                ${it.status || "waiting"}
+              </span>
+            </td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        orderItemsContainer.innerHTML = "";
+        orderItemsContainer.appendChild(table);
+      }
+
+      orderDetailModal.classList.remove("hidden");
+      orderDetailModal.classList.add("flex");
+    }
+
+    function closeOrderDetail() {
+      orderDetailModal.classList.add("hidden");
+      orderDetailModal.classList.remove("flex");
+      currentDetailOrderId = null;
+      currentDetailItems = [];
+    }
+
+    if (closeDetailModalBtn) {
+      closeDetailModalBtn.addEventListener("click", closeOrderDetail);
+    }
+
+    if (markAllPickedBtn) {
+      markAllPickedBtn.addEventListener("click", () => {
+        const inputs = orderItemsContainer.querySelectorAll(".picked-input");
+        inputs.forEach((inp) => {
+          const row = currentDetailItems.find(
+            (i) => i.id === inp.getAttribute("data-item-id")
+          );
+          if (row) {
+            inp.value = row.quantityRequested || 0;
+          }
+        });
+      });
+    }
+
+    if (detailModalSaveBtn) {
+      detailModalSaveBtn.addEventListener("click", async () => {
+        if (!db || !currentDetailOrderId || !currentDetailItems.length) {
+          closeOrderDetail();
+          return;
+        }
+
+        try {
+          const pickedInputs = orderItemsContainer.querySelectorAll(".picked-input");
+          const checkedInputs = orderItemsContainer.querySelectorAll(".checked-input");
+
+          const updates = [];
+
+          pickedInputs.forEach((inp) => {
+            const id = inp.getAttribute("data-item-id");
+            const item = currentDetailItems.find((i) => i.id === id);
+            if (!item) return;
+            const pickedVal = Number(inp.value || 0);
+            item.quantityPicked = pickedVal;
+          });
+
+          checkedInputs.forEach((inp) => {
+            const id = inp.getAttribute("data-item-id");
+            const item = currentDetailItems.find((i) => i.id === id);
+            if (!item) return;
+            const checkedVal = Number(inp.value || 0);
+            item.quantityChecked = checkedVal;
+
+            // basit status mantığı
+            if (checkedVal === item.quantityRequested) {
+              item.status = "ok";
+            } else if (checkedVal < item.quantityRequested) {
+              item.status = "eksik";
+            } else {
+              item.status = "farkli";
+            }
+          });
+
+          for (const it of currentDetailItems) {
+            const ref = doc(db, "orders", currentDetailOrderId, "items", it.id);
+            updates.push(
+              updateDoc(ref, {
+                quantityPicked: it.quantityPicked || 0,
+                quantityChecked: it.quantityChecked || 0,
+                status: it.status || "waiting"
+              })
+            );
+          }
+
+          await Promise.all(updates);
+          showMessage("Sipariş satırları güncellendi.", "success");
+          closeOrderDetail();
+        } catch (err) {
+          console.error("Detay kaydetme hatası:", err);
+          showMessage("Sipariş satırları kaydedilirken hata oluştu.", "error");
+        }
+      });
+    }
+
+    // --------- REALTIME ON-SNAPSHOT ---------
+    if (db) {
+      const qRef = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      onSnapshot(
+        qRef,
+        (snap) => {
+          const data = [];
+          snap.forEach((docSnap) => {
+            data.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          cachedOrders = data;
+          renderAllOrders();
+        },
+        (err) => {
+          console.error("onSnapshot hatası:", err);
+        }
+      );
+    }
+
+    if (refreshOrdersBtn) {
+      refreshOrdersBtn.addEventListener("click", () => {
+        fetchOrdersOnce();
+      });
+    }
+
+    // --------- TAB NAVİGASYON ---------
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabSections = document.querySelectorAll(".tab-section");
+
+    function switchTab(tabName) {
+      tabSections.forEach((sec) => {
+        if (sec.id === "tab-" + tabName) {
+          sec.classList.remove("hidden");
+        } else {
+          sec.classList.add("hidden");
+        }
+      });
+
+      tabButtons.forEach((btn) => {
+        const target = btn.getAttribute("data-tab");
+        if (target === tabName) {
+          btn.classList.add("bg-slate-800", "border", "border-slate-700", "border-b-0", "text-slate-100");
+        } else {
+          btn.classList.remove("bg-slate-800", "border", "border-slate-700", "border-b-0", "text-slate-100");
+          btn.classList.add("text-slate-300");
+        }
+      });
+    }
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tabName = btn.getAttribute("data-tab");
+        switchTab(tabName);
+      });
+    });
+
+    // Varsayılan tab: admin
+    switchTab("admin");
+
+    // Başlangıç mesajı
+    showMessage(
+      "Başlamak için bir Excel dosyası seç, 'Excel’i Oku' de, sonra 'Firestore’a Kaydet' butonuna bas.",
+      "info"
+    );
+  </script>
 </body>
 </html>
