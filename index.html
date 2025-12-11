@@ -336,8 +336,10 @@
     </div>
   </div>
 
-  <!-- SheetJS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-6RN6QZgOIfJA1s8iP6h5ecZFXJANIlZLzLfcWI51FQHQ7wxOXVLFBYpDLCgQdQ15XibcnCy8i7Mwkkp98dPzew==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- SheetJS: XLSX global (window.XLSX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+          integrity="sha512-6RN6QZgOIfJA1s8iP6h5ecZFXJANIlZLzLfcWI51FQHQ7wxOXVLFBYpDLCgQdQ15XibcnCy8i7Mwkkp98dPzew=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- Firebase + Uygulama Scripti -->
   <script type="module">
@@ -512,87 +514,109 @@
     }
 
     // ---------- Excel Okuma ----------
-function parseExcelFile(file) {
-  if (!file) {
-    showMessage("Lütfen önce bir Excel dosyası seç.", "error");
-    return;
-  }
+    function parseExcelFile(file) {
+      if (!file) {
+        showMessage("Lütfen önce bir Excel dosyası seç.", "error");
+        return;
+      }
 
-  const maxSizeMB = 10;
-  if (file.size > maxSizeMB * 1024 * 1024) {
-    showMessage(
-      `Dosya çok büyük (${maxSizeMB}MB üzeri). Daha küçük bir dosya deneyin.`,
-      "error"
-    );
-    return;
-  }
-
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    try {
-      // 🔴 FARK: XLSX'i window üzerinden alıyoruz
-      const XLSXLib = window.XLSX;
-      if (!XLSXLib) {
+      const maxSizeMB = 10;
+      if (file.size > maxSizeMB * 1024 * 1024) {
         showMessage(
-          "Excel kütüphanesi (XLSX) yüklenemedi. Sayfayı yenileyip tekrar deneyin.",
+          `Dosya çok büyük (${maxSizeMB}MB üzeri). Daha küçük bir dosya deneyin.`,
           "error"
         );
         return;
       }
 
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSXLib.read(data, { type: "array" });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
+      const reader = new FileReader();
 
-      const jsonData = XLSXLib.utils.sheet_to_json(worksheet, {
-        defval: "",
-        raw: false
-      });
+      reader.onload = (e) => {
+        try {
+          const XLSXLib = window.XLSX;
+          if (!XLSXLib) {
+            showMessage(
+              "Excel kütüphanesi (XLSX) yüklenemedi. Sayfayı yenileyip tekrar deneyin.",
+              "error"
+            );
+            return;
+          }
 
-      if (!jsonData || jsonData.length === 0) {
-        showMessage("Excel dosyasında veri bulunamadı.", "error");
-        renderTableFromJson([]);
-        parsedExcelData = [];
-        saveBtn.disabled = true;
-        return;
-      }
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSXLib.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
 
-      console.log("Excel kolonları:", Object.keys(jsonData[0]));
+          const jsonData = XLSXLib.utils.sheet_to_json(worksheet, {
+            defval: "",
+            raw: false
+          });
 
-      parsedExcelData = jsonData;
-      renderTableFromJson(jsonData);
-      showMessage(
-        `Excel okundu. Toplam ${jsonData.length} satır yüklendi. Sipariş No ve Şube'yi doldurup Firestore'a kaydedebilirsin.`,
-        "success"
-      );
-      saveBtn.disabled = false;
-    } catch (err) {
-      console.error("Excel parse hatası:", err);
-      showMessage(
-        "Excel dosyası okunurken hata oluştu: " +
-          (err && err.message ? err.message : err),
-        "error"
-      );
-      renderTableFromJson([]);
-      parsedExcelData = [];
-      saveBtn.disabled = true;
+          if (!jsonData || jsonData.length === 0) {
+            showMessage("Excel dosyasında veri bulunamadı.", "error");
+            renderTableFromJson([]);
+            parsedExcelData = [];
+            saveBtn.disabled = true;
+            return;
+          }
+
+          console.log("Excel kolonları:", Object.keys(jsonData[0]));
+
+          parsedExcelData = jsonData;
+          renderTableFromJson(jsonData);
+          showMessage(
+            `Excel okundu. Toplam ${jsonData.length} satır yüklendi. Sipariş No ve Şube'yi doldurup Firestore'a kaydedebilirsin.`,
+            "success"
+          );
+          saveBtn.disabled = false;
+        } catch (err) {
+          console.error("Excel parse hatası:", err);
+          showMessage(
+            "Excel dosyası okunurken hata oluştu: " +
+              (err && err.message ? err.message : err),
+            "error"
+          );
+          renderTableFromJson([]);
+          parsedExcelData = [];
+          saveBtn.disabled = true;
+        }
+      };
+
+      reader.onerror = (e) => {
+        console.error("FileReader hatası:", e);
+        showMessage(
+          "Dosya okunurken hata oluştu: " +
+            (e && e.message ? e.message : "bilinmeyen hata"),
+          "error"
+        );
+      };
+
+      reader.readAsArrayBuffer(file);
     }
-  };
 
-  reader.onerror = (e) => {
-    console.error("FileReader hatası:", e);
-    showMessage(
-      "Dosya okunurken hata oluştu: " +
-        (e && e.message ? e.message : "bilinmeyen hata"),
-      "error"
-    );
-  };
+    if (fileInput) {
+      fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          selectedFile = null;
+          parsedExcelData = [];
+          fileNameInfo.textContent = "Henüz dosya seçilmedi.";
+          saveBtn.disabled = true;
+          renderTableFromJson([]);
+          showMessage("Herhangi bir dosya seçilmedi.", "info");
+          return;
+        }
+        selectedFile = file;
+        fileNameInfo.textContent = `Seçilen dosya: ${file.name}`;
+        showMessage("Dosya seçildi. Şimdi 'Excel’i Oku' butonuna bas.", "info");
+      });
+    }
 
-  reader.readAsArrayBuffer(file);
-}
-
+    if (parseBtn) {
+      parseBtn.addEventListener("click", () => {
+        parseExcelFile(selectedFile);
+      });
+    }
 
     // ---------- Kolon isimlerini normalize eden yardımcılar ----------
     function normalizeKey(key) {
